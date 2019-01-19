@@ -1,0 +1,22 @@
+extends layout
+
+block content
+  h1=title
+
+  div.col-sm-12(style="padding-left:16.75%;")
+    if user
+      if user.is_admin
+        p Welcome Admin, it's been a while.
+      else
+        p Welcome back #{user.username}!
+
+      if todos.length > 0
+        ul
+          each item in todos
+            li(style=item.todo.completed ? "text-decoration:line-through;" : "none;")
+              a(href="/edit/"+item.todo.id)!=item.todo.title
+              a(href="/delete/"+item.todo.id style="margin-left:10%;color:#aaa;") Delete
+      else
+        p You have no todos.
+    else
+      p Welcome to your private todo app! Please register to login.

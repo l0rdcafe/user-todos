@@ -1,0 +1,15 @@
+extends layout
+
+block content
+  h1=title
+
+  form(method="POST" action="" class="col-sm-3")
+    div.form-group
+      label(for="todo") Todo:
+      input#todo.form-control(type="text" placeholder="Create Todo" name="todo" required="true")
+    button.btn.btn-primary(type="submit") Create
+  if errors
+    ul
+      for error in errors
+        li!=error.msg
+

@@ -1,0 +1,11 @@
+extends layout
+
+block content
+  h1=title
+
+  div.col-sm-12
+    ul(style="margin-left:14%;")
+      each user in users
+        li Username: #{user.username}
+          span(style="margin-left:5%;") ID: #{user.id}
+          a(href="/users/delete/"+user.id style="color:#aaa;margin-left:10%;") Delete

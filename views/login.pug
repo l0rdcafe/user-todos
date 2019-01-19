@@ -1,0 +1,18 @@
+extends layout
+
+block content
+  h1=title
+
+  form(method="POST" action="" class="col-sm-3")
+    div.form-group
+      label(for="username") Username:
+      input#username.form-control(type="text" placeholder="Username" name="username" required="true")
+    div.form-group
+      label(for="password") Password:
+      input#password.form-control(type="password" placeholder="Password" name="password" required="true")
+    button.btn.btn-primary(type="submit") Sign In
+
+  if errors
+    ul
+      for error in errors
+        li!=error.msg

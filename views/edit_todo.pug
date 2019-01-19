@@ -1,0 +1,21 @@
+extends layout
+
+block content
+  h1=title
+
+  form(method="POST" action="" class="col-sm-3")
+    div.form-group
+      label(for="todo") Todo:
+      input#todo.form-control(type="text" placeholder="Edit Todo" name="todo" required="true" value=todo.title)
+    div.form-group
+      label(for="completed") Completed:
+      input#completed.form-control(type="checkbox" name="completed" value=todo.completed)
+      input#id(type="hidden" name="id" value=todo.id)
+      input#todo_id(type="hidden" name="todo_id" value=id)
+    button.btn.btn-primary(type="submit") Edit
+
+  if errors
+    ul
+      for error in errors
+        li!=error.msg
+
