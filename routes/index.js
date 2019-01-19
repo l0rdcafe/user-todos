@@ -1,30 +1,42 @@
 const { Router } = require("express");
 const { body, validationResult } = require("express-validator/check");
 const { sanitizeBody } = require("express-validator/filter");
+const passport = require("passport");
 const bcrypt = require("bcrypt");
 const uuidv1 = require("uuid/v1");
-const { promisify } = require("util");
 
 const knex = require("../db/knex-instance");
 
+function ensureAuthentication(req, res, next) {
+  if (req.isAuthenticated()) {
+    next();
+  } else {
+    req.flash("info", "You must be logged in to see this page.");
+    res.redirect("/login");
+  }
+}
+
 const router = Router();
 
+router.use((req, res, next) => {
+  res.locals.currentUser = req.user;
+  res.locals.errors = req.flash("error");
+  res.locals.infos = req.flash("info");
+  next();
+});
+
 router.get("/", async (req, res, next) => {
-  if (req.session.userId === undefined) {
+  if (req.user === undefined) {
     return res.render("index", { title: "Home" });
   }
 
   try {
-    const [user] = await knex("users")
-      .select("*")
-      .where("id", req.session.userId);
     const todosResult = await knex("todos")
       .select("todo")
-      .where("user_id", req.session.userId);
+      .where("user_id", req.user.id);
     const todos = todosResult.length > 0 ? [...todosResult] : [];
-    console.log(todos);
 
-    res.render("index", { title: "Home", user, todos });
+    res.render("index", { title: "Home", user: req.user, todos });
   } catch (e) {
     console.log(e);
     next(e);
@@ -35,56 +47,14 @@ router.get("/login", (req, res) => {
   res.render("login", { title: "Sign In" });
 });
 
-router.post("/login", [
-  body("username", "Username must not be empty.")
-    .isLength({ min: 1 })
-    .trim(),
-  body("password", "Password must not be empty.")
-    .isLength({ min: 1 })
-    .trim(),
-  sanitizeBody("*")
-    .trim()
-    .escape(),
-  async (req, res, next) => {
-    const errors = validationResult(req);
+router.post(
+  "/login",
+  passport.authenticate("login", { successRedirect: "/", failureRedirect: "/login", failureFlash: true })
+);
 
-    if (!errors.isEmpty()) {
-      return res.render("login", { title: "Sign In", errors: errors.array() });
-    }
-
-    try {
-      const usernameResult = await knex("users")
-        .select("*")
-        .where("username", req.body.username);
-
-      if (usernameResult.length === 0) {
-        return res.render("login", { title: "Sign In", errors: [{ msg: "Username not found." }] });
-      }
-
-      const isValidPassword = await bcrypt.compare(req.body.password, usernameResult[0].password);
-      if (!isValidPassword) {
-        return res.render("login", { title: "Sign In", errors: [{ msg: "Incorrect Password." }] });
-      }
-
-      req.session.userId = usernameResult[0].id;
-      await promisify(req.session.save);
-      res.redirect("/");
-    } catch (e) {
-      console.log(e);
-      next(e);
-    }
-  }
-]);
-
-router.get("/logout", async (req, res, next) => {
-  try {
-    req.session.userId = undefined;
-    await promisify(req.session.destroy);
-    res.redirect("/");
-  } catch (e) {
-    console.log(e);
-    next(e);
-  }
+router.get("/logout", (req, res) => {
+  req.logout();
+  res.redirect("/");
 });
 
 router.get("/register", (req, res) => {
@@ -115,22 +85,18 @@ router.post("/register", [
 
     try {
       const hash = await bcrypt.hash(req.body.password, 10);
-      const [id] = await knex("users")
-        .insert({
-          username: req.body.username,
-          password: hash,
-          is_admin: false
-        })
-        .returning("id");
-
-      req.session.userId = id;
-      await promisify(req.session.save);
-      res.redirect("/");
+      await knex("users").insert({
+        username: req.body.username,
+        password: hash,
+        is_admin: false
+      });
+      next();
     } catch (e) {
       console.log(e);
       next(e);
     }
-  }
+  },
+  passport.authenticate("login", { successRedirect: "/", failureRedirect: "/register", failureFlash: true })
 ]);
 
 router.get("/users", async (req, res, next) => {
@@ -160,7 +126,7 @@ router.get("/users/delete/:id", async (req, res, next) => {
   }
 });
 
-router.get("/create", async (req, res, next) => {
+router.get("/create", ensureAuthentication, async (req, res, next) => {
   if (req.session.userId) {
     try {
       const [user] = await knex("users")
@@ -178,7 +144,7 @@ router.get("/create", async (req, res, next) => {
   }
 });
 
-router.post("/create", [
+router.post("/create", ensureAuthentication, [
   body("todo", "Todo must not be empty.")
     .isLength({ min: 1 })
     .trim(),
@@ -207,7 +173,7 @@ router.post("/create", [
   }
 ]);
 
-router.get("/delete/:id", async (req, res, next) => {
+router.get("/delete/:id", ensureAuthentication, async (req, res, next) => {
   if (req.params.id && req.session.userId) {
     try {
       const userTodos = await knex("todos")
@@ -234,7 +200,7 @@ router.get("/delete/:id", async (req, res, next) => {
   }
 });
 
-router.get("/edit/:id", async (req, res, next) => {
+router.get("/edit/:id", ensureAuthentication, async (req, res, next) => {
   if (req.params.id && req.session.userId) {
     try {
       const userTodos = await knex("todos")
@@ -263,7 +229,7 @@ router.get("/edit/:id", async (req, res, next) => {
   }
 });
 
-router.post("/edit/:id", [
+router.post("/edit/:id", ensureAuthentication, [
   body("todo", "Todo must not be empty.")
     .isLength({ min: 1 })
     .trim(),

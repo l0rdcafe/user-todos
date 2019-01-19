@@ -6,11 +6,15 @@ const cookieParser = require("cookie-parser");
 const createError = require("http-errors");
 const session = require("express-session");
 const uuidv1 = require("uuid/v1");
+const flash = require("connect-flash");
+const passport = require("passport");
 
 const routes = require("./routes");
+const setUpPassport = require("./passport-init");
 require("dotenv").config();
 
 const app = express();
+setUpPassport();
 
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "pug");
@@ -26,6 +30,9 @@ app.use(
     saveUninitialized: true
   })
 );
+app.use(flash());
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(routes);
 
 app.use((req, res, next) => {
